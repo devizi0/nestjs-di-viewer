@@ -3,6 +3,9 @@ name: Publish to npm
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'package.json'
+      - 'package-lock.json'
 
 jobs:
   publish:
@@ -10,6 +13,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Use Node.js
         uses: actions/setup-node@v4
@@ -18,19 +23,20 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           cache: 'npm'
 
+      - name: Configure git
+        run: |
+          git config user.name "devizi0"
+          git config user.email "devizi@donghyun.cc"
+
       - name: Install dependencies
         run: npm ci
 
       - name: Build
         run: npm run build
 
-      - name: Publish
+      - name: Bump patch version and publish
         run: |
           echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc
-          LOCAL=$(node -p "require('./package.json').version")
-          REMOTE=$(npm view nestjs-di-viewer version 2>/dev/null || echo "none")
-          if [ "$LOCAL" = "$REMOTE" ]; then
-            echo "Version $LOCAL already published, skipping."
-          else
-            npm publish --access public
-          fi
+          npm version patch -m "chore: bump version to %s"
+          git push
+          npm publish --access public
