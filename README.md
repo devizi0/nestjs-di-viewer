@@ -69,6 +69,21 @@ nestjs-di-viewer --export ./di-graph.png
 nestjs-di-viewer src/app.module.ts --export ./di-graph.png
 ```
 
+### Output Mermaid diagram text
+
+Prints the raw Mermaid diagram definition to stdout and exits — no server, no file:
+
+```bash
+nestjs-di-viewer --diagram
+```
+
+Useful for piping into other tools or feeding to AI agents:
+
+```bash
+nestjs-di-viewer --diagram | pbcopy   # copy to clipboard
+nestjs-di-viewer --diagram > graph.mmd
+```
+
 ### Options
 
 | Option | Description | Default |
@@ -77,6 +92,7 @@ nestjs-di-viewer src/app.module.ts --export ./di-graph.png
 | `-p, --port <number>` | Port for the local server | `3333` |
 | `--no-open` | Disable auto-opening the browser | — |
 | `--export <path>` | Export graph as PNG and exit | — |
+| `--diagram` | Print Mermaid diagram text to stdout and exit | — |
 
 ## Example
 
@@ -89,6 +105,9 @@ nestjs-di-viewer src/app.module.ts -p 4000
 
 # Export PNG (no server, exits after done)
 nestjs-di-viewer --export ./graph.png
+
+# Print Mermaid diagram text
+nestjs-di-viewer --diagram
 ```
 
 ## Graph Legend
