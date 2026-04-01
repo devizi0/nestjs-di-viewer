@@ -1,0 +1,36 @@
+{
+  "name": "nestjs-di-viewer",
+  "version": "1.0.0",
+  "description": "NestJS DI 의존성 그래프 시각화 CLI 도구",
+  "main": "dist/cli.js",
+  "bin": {
+    "nestjs-di-viewer": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/cli.ts",
+    "start": "node dist/cli.js"
+  },
+  "keywords": [
+    "nestjs",
+    "di",
+    "dependency-injection",
+    "visualizer"
+  ],
+  "author": "",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "commander": "^14.0.3",
+    "express": "^5.2.1",
+    "mermaid": "^11.13.0",
+    "open": "^11.0.0",
+    "puppeteer": "^24.40.0",
+    "ts-morph": "^27.0.2"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.5.0",
+    "typescript": "^6.0.2"
+  }
+}
