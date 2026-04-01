@@ -3,7 +3,7 @@ import { Command } from 'commander';
 import * as path from 'path';
 import * as fs from 'fs';
 import { parseModules } from './parser';
-import { startServer } from './server';
+import { startServer, buildMermaidDef } from './server';
 import { exportPng } from './export';
 
 function resolveEntry(entry?: string): string {
@@ -51,7 +51,8 @@ program
   .option('-p, --port <number>', '포트 번호', '3333')
   .option('--no-open', '브라우저 자동 오픈 비활성화')
   .option('--export <path>', 'PNG로 내보내기 (예: ./di-graph.png)')
-  .action(async (entry: string | undefined, opts: { port: string; open: boolean; export?: string }) => {
+  .option('--diagram', 'Mermaid 다이어그램 텍스트 출력 후 종료')
+  .action(async (entry: string | undefined, opts: { port: string; open: boolean; export?: string; diagram?: boolean }) => {
     const entryPath = resolveEntry(entry);
     const port = parseInt(opts.port, 10);
 
@@ -64,7 +65,9 @@ program
       console.warn(`Circular dependency detected: ${graph.circular.map((c) => `${c.from} <-> ${c.to}`).join(', ')}`);
     }
 
-    if (opts.export) {
+    if (opts.diagram) {
+      process.stdout.write(buildMermaidDef(graph) + '\n');
+    } else if (opts.export) {
       console.log(`Exporting PNG...`);
       await exportPng(graph, opts.export);
     } else {

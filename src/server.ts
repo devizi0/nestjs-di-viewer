@@ -2,21 +2,22 @@ import express from 'express';
 import * as http from 'http';
 import { DiGraph } from './parser';
 
-const HTML = (graph: DiGraph): string => {
-  const data = JSON.stringify(graph);
-
-  // Mermaid 다이어그램 생성 — 루트(AppModule) 관련 엣지를 맨 앞에 배치
+export function buildMermaidDef(graph: DiGraph): string {
   const circularSet = new Set(graph.circular.map(c => c.from + '→' + c.to));
   const rootMod = graph.modules.find(m => m.name === 'AppModule') || graph.modules[0];
   const rootEdges = graph.edges.filter(e => e.to === rootMod.name);
   const otherEdges = graph.edges.filter(e => e.to !== rootMod.name);
-  const sortedEdges = [...rootEdges, ...otherEdges];
   const lines: string[] = ['graph LR'];
-  sortedEdges.forEach(e => {
+  [...rootEdges, ...otherEdges].forEach(e => {
     const arrow = circularSet.has(e.from + '→' + e.to) ? '-. circular .->' : '-->';
     lines.push(`  ${e.from}${arrow}${e.to}`);
   });
-  const mermaidDef = lines.join('\n');
+  return lines.join('\n');
+}
+
+const HTML = (graph: DiGraph): string => {
+  const data = JSON.stringify(graph);
+  const mermaidDef = buildMermaidDef(graph);
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -275,16 +276,7 @@ const HTML = (graph: DiGraph): string => {
 };
 
 export function buildExportHTML(graph: DiGraph): string {
-  const circularSet = new Set(graph.circular.map(c => c.from + '→' + c.to));
-  const rootMod = graph.modules.find(m => m.name === 'AppModule') || graph.modules[0];
-  const rootEdges = graph.edges.filter(e => e.to === rootMod.name);
-  const otherEdges = graph.edges.filter(e => e.to !== rootMod.name);
-  const lines: string[] = ['graph LR'];
-  [...rootEdges, ...otherEdges].forEach(e => {
-    const arrow = circularSet.has(e.from + '→' + e.to) ? '-. circular .->' : '-->';
-    lines.push(`  ${e.from}${arrow}${e.to}`);
-  });
-  const mermaidDef = lines.join('\n');
+  const mermaidDef = buildMermaidDef(graph);
 
   return `<!DOCTYPE html>
 <html lang="en">
