@@ -56,13 +56,15 @@ program
     const entryPath = resolveEntry(entry);
     const port = parseInt(opts.port, 10);
 
-    console.log(`\nAnalyzing: ${entryPath}`);
+    const log = opts.diagram ? (...a: unknown[]) => process.stderr.write(a.join(' ') + '\n') : console.log.bind(console);
+
+    log(`\nAnalyzing: ${entryPath}`);
 
     const graph = parseModules(entryPath);
 
-    console.log(`Found ${graph.modules.length} modules / ${graph.edges.length} edges`);
+    log(`Found ${graph.modules.length} modules / ${graph.edges.length} edges`);
     if (graph.circular.length > 0) {
-      console.warn(`Circular dependency detected: ${graph.circular.map((c) => `${c.from} <-> ${c.to}`).join(', ')}`);
+      process.stderr.write(`Circular dependency detected: ${graph.circular.map((c) => `${c.from} <-> ${c.to}`).join(', ')}\n`);
     }
 
     if (opts.diagram) {
