@@ -2,6 +2,11 @@
 
 A CLI tool that visualizes NestJS dependency injection graphs as an interactive web UI or exported PNG.
 
+```bash
+npm install -g nestjs-di-viewer
+nestjs-di-viewer src/app.module.ts
+```
+
 ## Features
 
 - Parses all `@Module()` decorators across your NestJS project
