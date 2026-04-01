@@ -64,6 +64,46 @@ nestjs-di-viewer src/app.module.ts --export ./graph.png
 - Node.js 18+
 - NestJS project with TypeScript source
 
+## Contributing
+
+Contributions are welcome! Please follow these steps:
+
+1. Fork the repository
+2. Create a new branch (`git checkout -b feat/your-feature`)
+3. Commit your changes (`git commit -m "feat: add something"`)
+4. Push to the branch (`git push origin feat/your-feature`)
+5. Open a Pull Request
+
+### Development
+
+```bash
+git clone https://github.com/devizi0/nestjs-di-viewer.git
+cd nestjs-di-viewer
+npm install
+npm run build
+node dist/cli.js path/to/app.module.ts
+```
+
+### Project Structure
+
+```
+src/
+├── cli.ts       # CLI entry point (commander)
+├── parser.ts    # ts-morph based @Module() parser
+├── server.ts    # Express server + HTML/Mermaid graph builder
+└── export.ts    # Puppeteer PNG export
+```
+
+## Changelog
+
+### 1.0.0
+- Initial release
+- Interactive browser UI with sidebar and module details
+- PNG export via Puppeteer
+- Circular dependency detection
+- Orphan module highlighting
+- `forRoot()` / `forFeature()` support
+
 ## License
 
 MIT
