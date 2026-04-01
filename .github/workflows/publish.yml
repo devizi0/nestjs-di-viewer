@@ -27,4 +27,10 @@ jobs:
       - name: Publish
         run: |
           echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc
-          npm publish --access public
+          LOCAL=$(node -p "require('./package.json').version")
+          REMOTE=$(npm view nestjs-di-viewer version 2>/dev/null || echo "none")
+          if [ "$LOCAL" = "$REMOTE" ]; then
+            echo "Version $LOCAL already published, skipping."
+          else
+            npm publish --access public
+          fi
