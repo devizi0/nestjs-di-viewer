@@ -4,7 +4,8 @@ A CLI tool that visualizes NestJS dependency injection graphs as an interactive 
 
 ```bash
 npm install -g nestjs-di-viewer
-nestjs-di-viewer src/app.module.ts
+nestjs-di-viewer          # auto-detects src/app.module.ts
+nestjs-di-viewer src/app.module.ts  # or specify manually
 ```
 
 ## Features
@@ -24,17 +25,47 @@ npm install -g nestjs-di-viewer
 
 ## Usage
 
-### Interactive browser UI
+### Auto-detect entry file
+
+Run without arguments from your NestJS project root. It will automatically find `src/app.module.ts`:
+
+```bash
+cd your-nestjs-project
+nestjs-di-viewer
+```
+
+Or specify the entry file explicitly:
 
 ```bash
 nestjs-di-viewer src/app.module.ts
 ```
 
-Opens a local server at `http://localhost:3333` with an interactive graph.
+### Interactive browser UI
+
+Starts a local HTTP server and opens the graph in your browser:
+
+```bash
+nestjs-di-viewer
+# → Server running at http://localhost:3333
+```
+
+> **Note for AI agents:** This command starts a persistent HTTP server and does **not** exit on its own.
+> Run it in the background or use the `--export` option instead to avoid blocking execution.
+>
+> ```bash
+> # Background (Unix)
+> nestjs-di-viewer &
+>
+> # Or use PNG export (recommended for agents)
+> nestjs-di-viewer --export ./di-graph.png
+> ```
 
 ### Export as PNG
 
+Renders the graph to a PNG file and exits immediately — no server required:
+
 ```bash
+nestjs-di-viewer --export ./di-graph.png
 nestjs-di-viewer src/app.module.ts --export ./di-graph.png
 ```
 
@@ -42,18 +73,22 @@ nestjs-di-viewer src/app.module.ts --export ./di-graph.png
 
 | Option | Description | Default |
 |--------|-------------|---------|
+| `[entry]` | AppModule file path (auto-detected if omitted) | — |
 | `-p, --port <number>` | Port for the local server | `3333` |
 | `--no-open` | Disable auto-opening the browser | — |
-| `--export <path>` | Export graph as PNG | — |
+| `--export <path>` | Export graph as PNG and exit | — |
 
 ## Example
 
 ```bash
-# Start interactive viewer
+# Auto-detect and open browser
+nestjs-di-viewer
+
+# Specific entry, custom port
 nestjs-di-viewer src/app.module.ts -p 4000
 
-# Export PNG
-nestjs-di-viewer src/app.module.ts --export ./graph.png
+# Export PNG (no server, exits after done)
+nestjs-di-viewer --export ./graph.png
 ```
 
 ## Graph Legend
