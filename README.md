@@ -1,5 +1,7 @@
 # nestjs-di-viewer
 
+[![npm downloads](https://img.shields.io/npm/dw/nestjs-di-viewer)](https://www.npmjs.com/package/nestjs-di-viewer)
+
 A CLI tool that visualizes NestJS dependency injection graphs as an interactive web UI or exported PNG.
 
 ```bash
