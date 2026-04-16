@@ -2,16 +2,54 @@ import express from 'express';
 import * as http from 'http';
 import { DiGraph } from './parser';
 
+// id → 표시용 라벨 (동명 모듈이 있으면 파일명으로 구분)
+function buildLabelMap(graph: DiGraph): Map<string, string> {
+  const nameCount = new Map<string, number>();
+  for (const m of graph.modules) {
+    nameCount.set(m.name, (nameCount.get(m.name) ?? 0) + 1);
+  }
+  const labelMap = new Map<string, string>();
+  for (const m of graph.modules) {
+    if ((nameCount.get(m.name) ?? 0) > 1) {
+      const base = m.filePath.split('/').pop()?.replace('.ts', '') ?? m.name;
+      labelMap.set(m.id, `${m.name}\n(${base})`);
+    } else {
+      labelMap.set(m.id, m.name);
+    }
+  }
+  return labelMap;
+}
+
+// Mermaid 노드 ID로 쓸 수 있는 안전한 문자열 생성
+function safeNodeId(id: string): string {
+  return id.replace(/[^a-zA-Z0-9_]/g, '_');
+}
+
 export function buildMermaidDef(graph: DiGraph): string {
   const circularSet = new Set(graph.circular.map(c => c.from + '→' + c.to));
+  const labelMap = buildLabelMap(graph);
   const rootMod = graph.modules.find(m => m.name === 'AppModule') || graph.modules[0];
-  const rootEdges = graph.edges.filter(e => e.to === rootMod.name);
-  const otherEdges = graph.edges.filter(e => e.to !== rootMod.name);
+
+  const rootEdges = graph.edges.filter(e => e.to === rootMod?.id);
+  const otherEdges = graph.edges.filter(e => e.to !== rootMod?.id);
+
   const lines: string[] = ['graph LR'];
+
+  // 엣지 없는 고립 모듈도 노드로 표기
+  const connectedIds = new Set(graph.edges.flatMap(e => [e.from, e.to]));
+  for (const m of graph.modules) {
+    if (!connectedIds.has(m.id)) {
+      lines.push(`  ${safeNodeId(m.id)}["${labelMap.get(m.id) ?? m.name}"]`);
+    }
+  }
+
   [...rootEdges, ...otherEdges].forEach(e => {
     const arrow = circularSet.has(e.from + '→' + e.to) ? '-. circular .->' : '-->';
-    lines.push(`  ${e.from}${arrow}${e.to}`);
+    const fromLabel = labelMap.get(e.from) ?? e.from;
+    const toLabel = labelMap.get(e.to) ?? e.to;
+    lines.push(`  ${safeNodeId(e.from)}["${fromLabel}"]${arrow}${safeNodeId(e.to)}["${toLabel}"]`);
   });
+
   return lines.join('\n');
 }
 
@@ -152,23 +190,18 @@ const HTML = (graph: DiGraph): string => {
     let lang = 'en';
     function t(k) { return i18n[lang][k] ?? k; }
     function changeLang(v) { lang = v; applyLang(); }
-    function applyLang() {
-      document.getElementById('legend-module').textContent = t('legend_module');
-      document.getElementById('legend-circular').textContent = t('legend_circular');
-      document.getElementById('legend-orphan').textContent = t('legend_orphan');
-      document.querySelectorAll('.badge-circular').forEach(el => el.textContent = t('circular'));
-      document.querySelectorAll('.badge-orphan').forEach(el => el.textContent = t('orphan'));
-      if (selectedModule) selectModule(selectedModule);
-    }
 
-    // 분석
-    const circularNodes = new Set(graph.circular.flatMap(c => [c.from, c.to]));
-    const rootName = (graph.modules.find(m => m.name === 'AppModule') || graph.modules[0]).name;
+    // id 기반 분석
+    const circularIds = new Set(graph.circular.flatMap(c => [c.from, c.to]));
+    const rootMod = graph.modules.find(m => m.name === 'AppModule') || graph.modules[0];
+    const rootId = rootMod ? rootMod.id : '';
+
+    // BFS depth (id 기반)
     const radj = new Map();
-    graph.modules.forEach(m => radj.set(m.name, []));
+    graph.modules.forEach(m => radj.set(m.id, []));
     graph.edges.forEach(e => { if (radj.has(e.to)) radj.get(e.to).push(e.from); });
     const depthMap = new Map();
-    const bfsQueue = [rootName]; depthMap.set(rootName, 0);
+    const bfsQueue = [rootId]; depthMap.set(rootId, 0);
     while (bfsQueue.length) {
       const cur = bfsQueue.shift();
       for (const nb of radj.get(cur) ?? []) {
@@ -176,27 +209,38 @@ const HTML = (graph: DiGraph): string => {
       }
     }
     const importerSet = new Set(graph.edges.map(e => e.from));
-    const orphanNodes = new Set(graph.modules.map(m => m.name).filter(n => !importerSet.has(n) && n !== rootName));
+    const orphanIds = new Set(graph.modules.map(m => m.id).filter(id => !importerSet.has(id) && id !== rootId));
 
-    let selectedModule = null;
+    // id → 표시 라벨 (동명 모듈 구분)
+    const nameCount = new Map();
+    graph.modules.forEach(m => nameCount.set(m.name, (nameCount.get(m.name) ?? 0) + 1));
+    function getLabel(mod) {
+      if ((nameCount.get(mod.name) ?? 0) > 1) {
+        const base = mod.filePath.split('/').pop()?.replace('.ts', '') ?? mod.name;
+        return mod.name + ' (' + base + ')';
+      }
+      return mod.name;
+    }
+
+    let selectedId = null;
 
     // 사이드바
     const list = document.getElementById('module-list');
     [...graph.modules].sort((a,b) => a.name.localeCompare(b.name)).forEach(mod => {
       const el = document.createElement('div');
       let cls = 'module-item';
-      if (circularNodes.has(mod.name)) cls += ' circular';
-      if (orphanNodes.has(mod.name))   cls += ' orphan';
+      if (circularIds.has(mod.id)) cls += ' circular';
+      if (orphanIds.has(mod.id))   cls += ' orphan';
       el.className = cls;
-      el.textContent = mod.name;
-      if (circularNodes.has(mod.name)) {
+      el.textContent = getLabel(mod);
+      if (circularIds.has(mod.id)) {
         const b = document.createElement('span'); b.className = 'badge badge-circular'; b.textContent = t('circular'); el.appendChild(b);
       }
-      if (orphanNodes.has(mod.name)) {
+      if (orphanIds.has(mod.id)) {
         const b = document.createElement('span'); b.className = 'badge badge-orphan'; b.textContent = t('orphan'); el.appendChild(b);
       }
-      el.onclick = () => { if (selectedModule === mod.name) closeDetail(); else selectModule(mod.name); };
-      el.id = 'item-' + mod.name;
+      el.onclick = () => { if (selectedId === mod.id) closeDetail(); else selectModule(mod.id); };
+      el.id = 'item-' + mod.id.replace(/[^a-zA-Z0-9]/g, '_');
       list.appendChild(el);
     });
 
@@ -209,24 +253,34 @@ const HTML = (graph: DiGraph): string => {
       fontSize: 18,
     });
 
+    function applyLang() {
+      document.getElementById('legend-module').textContent = t('legend_module');
+      document.getElementById('legend-circular').textContent = t('legend_circular');
+      document.getElementById('legend-orphan').textContent = t('legend_orphan');
+      document.querySelectorAll('.badge-circular').forEach(el => el.textContent = t('circular'));
+      document.querySelectorAll('.badge-orphan').forEach(el => el.textContent = t('orphan'));
+      if (selectedId) selectModule(selectedId);
+    }
+
     // Mermaid 렌더 후 노드 클릭 이벤트 바인딩
+    // Mermaid 노드의 data-id 속성 또는 라벨 텍스트로 모듈 매칭
     window.addEventListener('load', () => {
       setTimeout(() => {
         document.querySelectorAll('.mermaid svg .node').forEach(el => {
           const label = el.querySelector('.label, text, span');
           if (!label) return;
-          const name = label.textContent?.trim().replace(/\\n/g, '');
-          if (!name) return;
+          const labelText = label.textContent?.trim().replace(/\\n/g, ' ') ?? '';
+          if (!labelText) return;
+          // 라벨로 모듈 찾기 (getLabel 결과와 매칭)
+          const mod = graph.modules.find(m => getLabel(m) === labelText || m.name === labelText);
+          if (!mod) return;
           el.style.cursor = 'pointer';
           el.addEventListener('click', () => {
-            const mod = graph.modules.find(m => m.name === name);
-            if (!mod) return;
-            if (selectedModule === name) { closeDetail(); return; }
-            // 이전 선택 노드 색 초기화
+            if (selectedId === mod.id) { closeDetail(); return; }
             document.querySelectorAll('.mermaid svg .node.selected-node')
               .forEach(n => n.classList.remove('selected-node'));
             el.classList.add('selected-node');
-            selectModule(name);
+            selectModule(mod.id);
           });
         });
       }, 800);
@@ -234,30 +288,42 @@ const HTML = (graph: DiGraph): string => {
 
     function closeDetail() {
       document.getElementById('detail-panel').classList.remove('visible');
-      selectedModule = null;
+      selectedId = null;
       document.querySelectorAll('.module-item').forEach(el => el.classList.remove('selected'));
       document.querySelectorAll('.mermaid svg .node.selected-node').forEach(n => n.classList.remove('selected-node'));
     }
 
-    function selectModule(name) {
-      selectedModule = name;
-      const mod = graph.modules.find(m => m.name === name);
+    function formatImport(imp) {
+      if (typeof imp === 'string') return imp;
+      if (!imp.dynamic) return imp.name;
+      const cfg = imp.dynamic;
+      let label = imp.name + '.' + cfg.method + '(';
+      if (cfg.args.length > 0) label += cfg.args.join(', ');
+      label += ')';
+      if (cfg.isGlobal) label += ' [global]';
+      return label;
+    }
+
+    function selectModule(id) {
+      selectedId = id;
+      const mod = graph.modules.find(m => m.id === id);
       if (!mod) return;
 
       document.querySelectorAll('.module-item').forEach(el => el.classList.remove('selected'));
-      const el = document.getElementById('item-' + name);
+      const safeId = id.replace(/[^a-zA-Z0-9]/g, '_');
+      const el = document.getElementById('item-' + safeId);
       if (el) { el.classList.add('selected'); el.scrollIntoView({ block: 'nearest' }); }
 
-      const depth = depthMap.has(name) ? depthMap.get(name) : '?';
+      const depth = depthMap.has(id) ? depthMap.get(id) : '?';
       const badges = [
-        circularNodes.has(name) ? \`<span class="badge badge-circular">\${t('circular')}</span>\` : '',
-        orphanNodes.has(name)   ? \`<span class="badge badge-orphan">\${t('orphan')}</span>\` : '',
+        circularIds.has(id) ? \`<span class="badge badge-circular">\${t('circular')}</span>\` : '',
+        orphanIds.has(id)   ? \`<span class="badge badge-orphan">\${t('orphan')}</span>\` : '',
         \`<span style="font-size:0.7rem;color:#555;margin-left:6px">\${t('depth_label')} \${depth}</span>\`,
       ].join('');
-      document.getElementById('detail-panel-title').innerHTML = name + badges;
+      document.getElementById('detail-panel-title').innerHTML = getLabel(mod) + badges;
 
       const sections = [
-        { title: 'Imports',     items: mod.imports },
+        { title: 'Imports',     items: mod.imports.map(formatImport) },
         { title: 'Providers',   items: mod.providers },
         { title: 'Controllers', items: mod.controllers },
         { title: 'Exports',     items: mod.exports },
