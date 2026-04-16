@@ -1,6 +1,6 @@
 {
   "name": "nestjs-di-viewer",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "NestJS DI 의존성 그래프 시각화 CLI 도구",
   "main": "dist/cli.js",
   "bin": {
